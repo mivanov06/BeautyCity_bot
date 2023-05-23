@@ -12,6 +12,13 @@ class Profile(models.Model):
         null=False,
         blank=False)
 
+    class Meta:
+        verbose_name = 'Клиент'
+        verbose_name_plural = 'Клиенты'
+
+    def __str__(self):
+        return self.user.username
+
 
 class Service(models.Model):
     # Услуга
