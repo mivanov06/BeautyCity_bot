@@ -8,14 +8,17 @@ from .models import *
 class AdminService(admin.ModelAdmin):
     list_display = ('name', 'price')
 
+
 @admin.register(Specialist)
 class AdminSpecialist(admin.ModelAdmin):
     list_display = ('name',)
 
+
 @admin.register(Schedule)
 class AdminSchedule(admin.ModelAdmin):
-    list_display = ('date', 'time', 'specialist', 'services', 'user',)
+    list_display = ('date', 'timeslot', 'specialist', 'services', 'user',)
 
-@admin.register(Profile)
-class AdminProfile(admin.ModelAdmin):
-    list_display = ('user',)
+
+@admin.register(User)
+class AdminUser(admin.ModelAdmin):
+    list_display = ('name', 'phone')

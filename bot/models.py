@@ -1,23 +1,18 @@
 from django.db import models
-from django.contrib.auth.models import User
 from phonenumber_field.modelfields import PhoneNumberField
 
 
-class Profile(models.Model):
-    user = models.OneToOneField(
-        User,
-        on_delete=models.CASCADE)
-    phoneNumber = PhoneNumberField(
-        unique=True,
-        null=False,
-        blank=False)
+class User(models.Model):
+    name = models.CharField(max_length=200)
+    telegram_id = models.IntegerField(verbose_name='ID пользователя в Telegram', null=True)
+    phone = PhoneNumberField(max_length=20, verbose_name='Номер телефона', blank=True)
 
     class Meta:
         verbose_name = 'Клиент'
         verbose_name_plural = 'Клиенты'
 
     def __str__(self):
-        return self.user.username
+        return f'{self.name} - {self.phone}'
 
 
 class Service(models.Model):
@@ -55,25 +50,51 @@ class Specialist(models.Model):
         return self.name
 
 
+TIMESLOT_LIST = (
+    (0, '09:00 – 09:30'),
+    (1, '09:30 – 10:00'),
+    (2, '10:00 – 10:30'),
+    (3, '10:30 – 11:00'),
+    (4, '11:00 – 11:30'),
+    (5, '11:30 – 12:00'),
+    (6, '12:00 – 12:30'),
+    (7, '12:30 – 13:00'),
+    (8, '13:00 – 13:30'),
+    (9, '13:30 – 14:00'),
+    (10, '14:00 – 14:30'),
+    (11, '14:30 – 15:00'),
+    (12, '15:00 – 15:30'),
+    (13, '16:00 – 16:30'),
+    (14, '17:00 – 17:30'),
+    (15, '17:30 – 18:00'),
+    (16, '18:00 – 18:30'),
+    (17, '18:30 – 19:00'),
+    (18, '19:00 – 19:30'),
+    (19, '19:30 – 20:00'),
+)
+
+
 class Schedule(models.Model):
-    date = models.DateField('Дата посещения')
-    time = models.TimeField('Время посещения')
+    date = models.DateField(help_text="DD-MM-YYYY", verbose_name='Дата посещения')
+    timeslot = models.IntegerField(choices=TIMESLOT_LIST, null=True, verbose_name='Время посещения')
     user = models.ForeignKey(
-        Profile,
+        User,
         verbose_name='Имя клиента',
         on_delete=models.CASCADE,
         related_name='schedules_user',
-        blank=False,
+        blank=True, null=True
     )
     specialist = models.ForeignKey(
         Specialist,
         on_delete=models.CASCADE,
-        blank=True,
+        related_name='schedules_specialist',
+        blank=True, null=True
     )
     services = models.ForeignKey(
         Service,
         on_delete=models.CASCADE,
-        blank=True,
+        related_name='schedules_services',
+        blank=True, null=True
     )
 
     class Meta:
@@ -81,4 +102,4 @@ class Schedule(models.Model):
         verbose_name_plural = 'Расписание'
 
     def __str__(self):
-        return f'{self.time} - {self.specialist.name} - {self.services.name}'
+        return f'{self.timeslot} - {self.specialist.name} - {self.services.name}'
