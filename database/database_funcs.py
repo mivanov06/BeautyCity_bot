@@ -1,4 +1,4 @@
-from bot import my_table, links_table
+from bot_main import my_table, links_table
 
 from sqlite3_api.Table import Table
 from sqlite3_api.field_types import List
