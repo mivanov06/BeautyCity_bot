@@ -25,6 +25,8 @@ class GetUserInfo(StatesGroup):
     service = State()  # Тип косметической процедуры
     master = State()
     date = State()
+    time = State()
+    name = State()
     dimension = State()
     rental_period = State()
     phone = State()
@@ -32,21 +34,6 @@ class GetUserInfo(StatesGroup):
     yourself_delivery = State()
     courier_delivery = State()
     address = State()
-
-
-'''
-Что сохраняем в БД:
-
-'user_id': 'telegram_id',
-'weight': масса вещей,
-'cell_size': значение габаритов ячейки, если клиент не хочет сам мерять то False,
-'storage_time': срок аренды ячейки,
-'phone': user_phone,
-'yourself': Bool,
-'address': user_address, если пустое, то клиент сам привезет свои вещи,
-'is_processed': обработан ли заказ (True) или это новый (False),
-'cell_number': номера ячеек хранения,
-'''
 
 
 # Этот хэндлер срабатывает на команду /start
@@ -118,7 +105,7 @@ async def get_master(callback: CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(Text(startswith=['master']), GetUserInfo.master)
-async def get_rental_period(callback: CallbackQuery, state: FSMContext):
+async def get_procedure_date(callback: CallbackQuery, state: FSMContext):
     master = callback.data.split()[1]
     await state.update_data(master=master)
 
@@ -126,30 +113,54 @@ async def get_rental_period(callback: CallbackQuery, state: FSMContext):
         text='Выберите дату:',
         reply_markup=user_keyboards.master_work_shifts_keyboard(master)
     )
-    await state.set_state(GetUserInfo.rental_period)
+    await state.set_state(GetUserInfo.date)
     await callback.answer()
 
 
-@router.callback_query(Text(endswith=['month']), GetUserInfo.rental_period)
-async def get_phone_number(callback: CallbackQuery, state: FSMContext):
-    storage_time = callback.data.split()[0]
-    await state.update_data(storage_time=storage_time)
+@router.callback_query(Text(startswith=['date']), GetUserInfo.date)
+async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
+    date = callback.data.split()[1]
+    await state.update_data(date=date)
 
     await callback.message.edit_text(
+        text='Выберите время:',
+        reply_markup=user_keyboards.time_keyboard()
+    )
+    await state.set_state(GetUserInfo.time)
+    await callback.answer()
+
+
+@router.callback_query(Text(startswith=['time']), GetUserInfo.time)
+async def get_user_name(callback: CallbackQuery, state: FSMContext):
+    time = callback.data.split()[1]
+    await state.update_data(time=time)
+
+    await callback.message.edit_text(
+        text='Введите свое имя:'
+    )
+    await state.set_state(GetUserInfo.name)
+    await callback.answer()
+
+
+@router.message(GetUserInfo.name)
+async def get_phone_number(message: Message, state: FSMContext):
+    name = message.text
+    await state.update_data(name=name)
+
+    await message.answer(
         text='Введите ваш номер телефона для связи:'
     )
     await state.set_state(GetUserInfo.phone)
-    await callback.answer()
 
 
 @router.message(GetUserInfo.phone)
 async def process_phone(message: Message, state: FSMContext):
     phone = message.text
     await state.update_data(phone=phone)
-
-    await message.answer(
-        text='Выберите метод доставки',
-        reply_markup=user_keyboards.send_to_storage_keyboard())
+    user_data = await state.get_data()
+    date = user_data['date']
+    print(date)
+    await message.answer(text=f'Спасибо за запись! До встречи {date} по адресу address.\nХотите оплатить сразу?')
 
     await state.set_state(GetUserInfo.deliver)
 

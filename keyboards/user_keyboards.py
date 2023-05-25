@@ -116,6 +116,19 @@ def master_work_shifts_keyboard(master):
     )
 
 
+def time_keyboard():
+    time = []
+    for hour in range(8, 20):
+        time.append((str(hour) + ':00', f'time {str(hour) + ":00"}'))
+        if hour < 20:
+            time.append((str(hour) + ':30', f'time {str(hour) + ":30"}'))
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in time
+        ],
+    )
+
+
 def output_my_cells_keyboard():
     buttons_data = [
         ('Продлить хранение', 'extend_storage'),
