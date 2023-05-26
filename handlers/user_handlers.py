@@ -25,15 +25,12 @@ class MyCellsState(StatesGroup):
 class GetUserInfo(StatesGroup):
     new_user = State()
     service = State()  # Тип косметической процедуры
-    master = State()
-    date = State()
-    time = State()
-    name = State()
-    phone = State()
-    pay = State()
-    yourself_delivery = State()
-    courier_delivery = State()
-    address = State()
+    master = State()  # Специалист, к которому происходит запись
+    date = State()  # Дата посещения
+    time = State()  # Время посещения
+    name = State()  # Имя, которое ввел клиент
+    phone = State()  # Телефон клиента
+    pay = State()  # Оплатил ли клиент процедуру сразу (True/False)
 
 
 # Этот хэндлер срабатывает на команду /start
