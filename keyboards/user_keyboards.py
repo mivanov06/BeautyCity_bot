@@ -6,6 +6,8 @@ from aiogram.types import (
 )
 import datetime as dt
 
+CALL_US_BUTTON = ('Позвонить нам', 'call_us')
+
 
 def start_keyboard():
     buttons_data = [
@@ -18,18 +20,6 @@ def start_keyboard():
             [KeyboardButton(text=text) for text in row] for row in buttons_data
         ],
         resize_keyboard=True
-    )
-
-
-def storage_conditions_keyboard():
-    buttons_data = [
-        ('Читать 🔍', 'https://telegra.ph/Usloviya-hraneniya-04-20')
-    ]
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, url=url)] for text, url in buttons_data
-        ]
     )
 
 
@@ -46,21 +36,14 @@ def what_can_be_stored_keyboard():
     )
 
 
-def send_to_storage_keyboard():
-    buttons_data = [
-        ('Привезете вещи сами?', 'yourself'),
-        ('Курьером (бесплатно)', 'courier')
+def type_service_keyboard():
+    services = [
+        ('Мейкап', 'service Мейкап'),
+        ('Покраска волос', 'service Покраска волос'),
+        ('Маникюр', 'service Маникюр'),
+        CALL_US_BUTTON
     ]
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in buttons_data
-        ]
-    )
-
-
-def type_service_keyboard():
-    services = [('Мейкап', 'service makeup'), ('Покраска волос', 'service coloring'), ('Маникюр', 'service manicure')]
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in services
@@ -69,7 +52,11 @@ def type_service_keyboard():
 
 
 def masters_keyboard():
-    masters = [('Ольга', 'master Ольга'), ('Татьяна', 'master Татьяна')]
+    masters = [
+        ('Ольга', 'master Ольга'),
+        ('Татьяна', 'master Татьяна'),
+        CALL_US_BUTTON
+    ]
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in masters
@@ -105,9 +92,11 @@ def master_work_shifts_keyboard(master):
     if master == 'Ольга':
         first_shift = first_shift_olga
         work_shifts_buttons = calculate_work_shifts(first_shift)
+        work_shifts_buttons.append(CALL_US_BUTTON)
     else:
         first_shift = first_shift_tatiana
         work_shifts_buttons = calculate_work_shifts(first_shift)
+        work_shifts_buttons.append(CALL_US_BUTTON)
     
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -122,6 +111,7 @@ def time_keyboard():
         time.append((str(hour) + ':00', f'time {str(hour) + ":00"}'))
         if hour < 20:
             time.append((str(hour) + ':30', f'time {str(hour) + ":30"}'))
+    time.append(CALL_US_BUTTON)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in time
@@ -129,11 +119,10 @@ def time_keyboard():
     )
 
 
-def output_my_cells_keyboard():
+def pay_keyboard():
     buttons_data = [
-        ('Продлить хранение', 'extend_storage'),
-        ('Забрать часть вещей', 'pick_up_some_things'),
-        ('Забрать вещи', 'pick_up_all_things')
+        ('Да', 'pay_yes'),
+        ('Нет', 'pay_no')
     ]
 
     return InlineKeyboardMarkup(
@@ -141,19 +130,6 @@ def output_my_cells_keyboard():
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in buttons_data
         ]
     )
-
-
-def generate_my_cells_keyboard(user_cells):
-    inline_keyboard = []
-    for cell in user_cells:
-        cell_button = [
-                InlineKeyboardButton(
-                    text=f'{cell}',
-                    callback_data=f'cell_{cell}'
-                )
-        ]
-        inline_keyboard.append(cell_button)
-    return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
 
 
 def extend_rental_period_keyboard():

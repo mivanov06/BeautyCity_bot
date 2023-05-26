@@ -44,10 +44,6 @@ async def set_main_menu(bot: Bot):
                 command="/support",
                 description="Поддержка"
             ),
-            types.BotCommand(
-                command="/admin",
-                description="Управление"
-            ),
 
         ]
     )

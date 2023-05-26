@@ -1,10 +1,12 @@
-from aiogram import Router
+from aiogram import Router, Bot
 from aiogram.filters import Command, CommandStart, Text
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile, pre_checkout_query, successful_payment, LabeledPrice
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
+from aiogram.types.message import ContentType
+from aiogram.methods.send_invoice import SendInvoice
 
-from config_data.config import my_table
+from config_data.config import my_table, load_config, PRICES, PHOTOS
 from keyboards import user_keyboards
 from lexicon.lexicon_ru import LEXICON_RU
 from aiogram3_calendar import DialogCalendar, dialog_cal_callback
@@ -27,10 +29,8 @@ class GetUserInfo(StatesGroup):
     date = State()
     time = State()
     name = State()
-    dimension = State()
-    rental_period = State()
     phone = State()
-    deliver = State()
+    pay = State()
     yourself_delivery = State()
     courier_delivery = State()
     address = State()
@@ -48,16 +48,8 @@ async def process_start_command(message: Message):
 # Этот хэндлер срабатывает на команду /help
 @router.message(Command(commands=['help']))
 async def process_help_command(message: Message):
-    await message.answer(
+    await message.send.answer(
         text=LEXICON_RU['/help'],
-    )
-
-
-@router.message(Text(contains=['Условия хранения']))
-async def process_storage_conditions(message: Message):
-    await message.answer(
-        text='Ознакомиться с условиями хранения:',
-        reply_markup=user_keyboards.storage_conditions_keyboard()
     )
 
 
@@ -80,6 +72,13 @@ async def sign_up(message: Message, state: FSMContext):
     await state.set_state(GetUserInfo.new_user)
 
 
+@router.callback_query(Text(text=['call_us']))
+async def call_us(callback: CallbackQuery):
+    await callback.message.edit_text(
+        text='Мы рады звонку в любое время\n8(800) 555 35 35'
+    )
+
+
 @router.callback_query(Text(text=['agree']), GetUserInfo.new_user)
 async def get_service_type(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
@@ -93,7 +92,7 @@ async def get_service_type(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(Text(startswith=['service']), GetUserInfo.service)
 async def get_master(callback: CallbackQuery, state: FSMContext):
-    service = callback.data.split()[1]
+    service = callback.data.split()[1:]
     await state.update_data(service=service)
 
     await callback.message.edit_text(
@@ -159,58 +158,52 @@ async def process_phone(message: Message, state: FSMContext):
     await state.update_data(phone=phone)
     user_data = await state.get_data()
     date = user_data['date']
-    print(date)
-    await message.answer(text=f'Спасибо за запись! До встречи {date} по адресу address.\nХотите оплатить сразу?')
-
-    await state.set_state(GetUserInfo.deliver)
-
-
-@router.callback_query(Text(text=['yourself', 'courier']), GetUserInfo.deliver)
-async def check_deliver_method(callback: CallbackQuery, state: FSMContext):
-    if callback.data == 'yourself':
-        await state.update_data(deliver='yourself')
-        await callback.message.edit_text(
-            text='Адрес склада: Улица - Пыльная, дом - Не видно.\n'
-                 'Укажите дату, когда приедете:',
-            reply_markup=await DialogCalendar.start_calendar()
-        )
-        await state.set_state(GetUserInfo.yourself_delivery)
-    elif callback.data == 'courier':
-        await state.update_data(deliver='courier')
-        await callback.message.edit_text(
-            text='Введите адрес, откуда забрать вещи:'
-        )
-        await state.set_state(GetUserInfo.courier_delivery)
-    await callback.answer()
-
-
-@router.message(GetUserInfo.courier_delivery)
-async def process_address(message: Message, state: FSMContext):
-    await state.update_data(address=message.text)
     await message.answer(
-        text='Наш менеджер свяжется с вами в ближайшее время для уточнения '
-             'деталей оплаты  и времени доставки '
+        text=f'Спасибо за запись! До встречи {date} по адресу address.\nХотите оплатить сразу?',
+        reply_markup=user_keyboards.pay_keyboard()
     )
+
+    await state.set_state(GetUserInfo.pay)
+
+
+@router.callback_query(Text(startswith=['pay_no']), GetUserInfo.pay)
+async def check_pay(callback: CallbackQuery, state: FSMContext):
+    await state.update_data(pay=False)
+    # write DB
+    await message.answer(
+        reply_markup=user_keyboards.start_keyboard()
+    )
+
+
+@router.message(Text(contains=['pay_yes']))
+async def process_storage_conditions(message: Message, bot: Bot, state: FSMContext):
     user_data = await state.get_data()
-    await entry_to_database(my_table, user_data)
-    await state.clear()
+    service = user_data['service']
+    price = [LabeledPrice(label=f'{service}', amount=PRICES[f'{service}'] * 100)]
+    await bot.send_invoice(
+        message.from_user.id,
+        title=service,
+        description='Оплата косметической поцедуры.',
+        provider_token=load_config().payment_token.p_token,
+        currency='rub',
+        photo_url=PHOTOS[f'{service}'],
+        is_flexible=False,
+        prices=price,
+        start_parameter='example',
+        payload='test-invoice-payload'
+    )
 
 
-@router.callback_query(dialog_cal_callback.filter())
-async def process_confirm(callback: CallbackQuery, callback_data: dict,
-                          state: FSMContext):
-    selected, date = await DialogCalendar().process_selection(callback,
-                                                              callback_data)
-    if selected:
-        message = date.strftime("%d/%m/%Y")
-        await callback.message.edit_text(
-            text=f'Место для ваших вещей забронировано на складе. '
-                 f'Ждем вас {message}'
-        )
-        await state.update_data(date=message)
-        user_data = await state.get_data()
-        await entry_to_database(my_table, user_data)
-        await state.clear()
+@router.pre_checkout_query(lambda query: True)
+async def pre_checkout_query(pre_checkout_q: pre_checkout_query.PreCheckoutQuery, bot: Bot):
+    await bot.answer_pre_checkout_query(pre_checkout_q.id, ok=True)
+
+
+@router.message()
+async def successful_payment(message: successful_payment.SuccessfulPayment):
+    # write DB
+    pass
+
 
 
 # Ветвь "Мои ячейки"
