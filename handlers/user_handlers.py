@@ -112,7 +112,7 @@ async def get_service_type(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(Text(startswith=['service']), GetUserInfo.service)
 async def get_master(callback: CallbackQuery, state: FSMContext):
-    service = callback.data.split()[1:]
+    service = callback.data.split()[1]
     await state.update_data(service=service)
 
     await callback.message.edit_text(
