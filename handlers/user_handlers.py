@@ -33,6 +33,11 @@ class GetUserInfo(StatesGroup):
     pay = State()  # Оплатил ли клиент процедуру сразу (True/False)
 
 
+class GetCommentInfo(StatesGroup):
+    text = State()
+    user_name = State()
+
+
 # Этот хэндлер срабатывает на команду /start
 @router.message(CommandStart())
 async def process_start_command(message: Message):
@@ -55,6 +60,24 @@ async def process_what_can_be_stored(message: Message):
     await message.answer(
         text='Ознакомиться с правилами хранения:',
         reply_markup=user_keyboards.what_can_be_stored_keyboard()
+    )
+
+
+@router.callback_query(Text(contains=['Оставить отзыв']), GetCommentInfo)
+async def set_text_comment(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        text='Напишите отзыв:'
+    )
+    await state.set_state(GetCommentInfo.text)
+    await callback.answer()
+
+
+@router.message(GetCommentInfo.text)
+async def set_user_name_comment(message: Message, state: FSMContext):
+    text = message.text
+    await state.update_data(text=text)
+    await message.answer(
+        text='Ваше имя:'
     )
 
 
@@ -94,7 +117,7 @@ async def get_master(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         text='К какому мастеру вы хотите записаться?',
-        reply_markup=user_keyboards.masters_keyboard()
+        reply_markup=user_keyboards.masters_keyboard(service)
     )
     await state.set_state(GetUserInfo.master)
     await callback.answer()
@@ -107,7 +130,7 @@ async def get_procedure_date(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         text='Выберите дату:',
-        reply_markup=user_keyboards.master_work_shifts_keyboard(master)
+        reply_markup=user_keyboards.date_work_master_keyboard(master)
     )
     await state.set_state(GetUserInfo.date)
     await callback.answer()
@@ -120,7 +143,7 @@ async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
 
     await callback.message.edit_text(
         text='Выберите время:',
-        reply_markup=user_keyboards.time_keyboard()
+        reply_markup=user_keyboards.time_work_master_keyboard(GetUserInfo.master, GetUserInfo.date)
     )
     await state.set_state(GetUserInfo.time)
     await callback.answer()
