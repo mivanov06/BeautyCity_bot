@@ -1,3 +1,11 @@
+import os
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BeautyCity_bot.settings")
+
+import django
+
+django.setup()
+
 from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
@@ -8,6 +16,8 @@ import datetime as dt
 
 CALL_US_BUTTON = ('Позвонить нам', 'call_us')
 
+from bot.models import *
+
 
 def start_keyboard():
     buttons_data = [
@@ -15,9 +25,9 @@ def start_keyboard():
         ('О нас',)
     ]
 
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=text) for text in row] for row in buttons_data
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=text) for text in row] for row in buttons_data
         ],
         resize_keyboard=True
     )
@@ -44,6 +54,11 @@ def type_service_keyboard():
         CALL_US_BUTTON
     ]
 
+    serices_m = Service.objects.all()
+    services = list()
+    for service in serices_m:
+        services.append((service.name, f'service {service.id}'))
+    services.append(CALL_US_BUTTON)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in services
@@ -51,15 +66,57 @@ def type_service_keyboard():
     )
 
 
-def masters_keyboard():
-    masters = [
-        ('Ольга', 'master Ольга'),
-        ('Татьяна', 'master Татьяна'),
-        CALL_US_BUTTON
-    ]
+def masters_keyboard(service):
+    service_m = Service.objects.get(pk=service)
+    print(f'{service_m=}')
+    masters_m = service_m.services.all()
+    masters = list()
+    for master in masters_m:
+        masters.append((master.name, f'master {master.id}'))
+    masters.append(CALL_US_BUTTON)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in masters
+        ],
+    )
+
+
+def date_work_master_keyboard(master):
+    master = Specialist.objects.get(pk=master)
+    date_m = master.specialist.filter(date__gte=dt.date.today())
+    date_list = list()
+    for date_element in date_m:
+        date_list.append((str(date_element.date), f'date {date_element.date}'))
+    date_list.append(CALL_US_BUTTON)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in date_list
+        ],
+    )
+
+
+def time_work_master_keyboard(master_id, service_id, date):
+    date_list = Work_time.objects.filter(date=date).filter(specialist_id=master_id).first()  #
+    busy_time_query = Schedule.objects.filter(date=date).filter(specialist_id=master_id)
+    busy_time_list = list()  # Занятые слоты на день
+    for busy_time in busy_time_query:
+        busy_time_list.append(busy_time.timeslot)
+    print(f'{TIMESLOT_LIST[date_list.timeslot_start]=}')
+    print(f'{TIMESLOT_LIST[date_list.timeslot_end]=}')
+    time_list = list()
+    print(busy_time_list)
+    timeslot_start_id, _ = TIMESLOT_LIST[date_list.timeslot_start]
+    timeslot_end_id, _ = TIMESLOT_LIST[date_list.timeslot_end]
+    for element_id in range(timeslot_start_id, timeslot_end_id + 1):
+        slot_id, time_str = TIMESLOT_LIST[element_id]
+        if slot_id not in busy_time_list:
+            time_list.append((f'{str(time_str)}', f'time {time_str}'))
+        else:
+            time_list.append((f'{str(time_str)} Занято', f't'))
+    time_list.append(CALL_US_BUTTON)
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in time_list
         ],
     )
 
@@ -97,7 +154,6 @@ def master_work_shifts_keyboard(master):
         first_shift = first_shift_tatiana
         work_shifts_buttons = calculate_work_shifts(first_shift)
         work_shifts_buttons.append(CALL_US_BUTTON)
-    
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in work_shifts_buttons
