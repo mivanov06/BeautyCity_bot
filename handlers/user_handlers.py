@@ -16,6 +16,17 @@ from utils.utils import entry_to_database, get_qrcode
 
 router = Router()
 
+import os
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BeautyCity_bot.settings")
+
+import django
+
+django.setup()
+
+from bot.models import *
+
+
 
 class MyCellsState(StatesGroup):
     cell_number = State()
@@ -31,11 +42,14 @@ class GetUserInfo(StatesGroup):
     name = State()  # Имя, которое ввел клиент
     phone = State()  # Телефон клиента
     pay = State()  # Оплатил ли клиент процедуру сразу (True/False)
+    pay_yes = State()
+    pay_no = State()
 
 
 class GetCommentInfo(StatesGroup):
     text = State()
     user_name = State()
+    save = State()
 
 
 # Этот хэндлер срабатывает на команду /start
@@ -63,13 +77,15 @@ async def process_what_can_be_stored(message: Message):
     )
 
 
-@router.callback_query(Text(contains=['Оставить отзыв']), GetCommentInfo)
-async def set_text_comment(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
+# --------------------------------------------------------------------------
+
+
+@router.message(Text(contains=['Оставить отзыв']))
+async def set_text_comment(message: Message, state: FSMContext):
+    await message.answer(
         text='Напишите отзыв:'
     )
     await state.set_state(GetCommentInfo.text)
-    await callback.answer()
 
 
 @router.message(GetCommentInfo.text)
@@ -79,6 +95,28 @@ async def set_user_name_comment(message: Message, state: FSMContext):
     await message.answer(
         text='Ваше имя:'
     )
+    await state.set_state(GetCommentInfo.save)
+
+
+@router.message(GetCommentInfo.save)
+async def save_comment(message: Message, state: FSMContext):
+    user_name = message.text
+    user_data = await state.get_data()
+    await state.update_data(user_name=user_name)
+    comment = Comment.objects.create()
+    comment.text = user_data['text']
+    comment.user_name = user_name
+    comment.save()
+
+    await message.answer(
+        text='Спасибо об отзыве о нашем салоне красоты!',
+        reply_markup=user_keyboards.start_keyboard()
+
+    )
+    await state.clear()
+
+
+# --------------------------------------------------------------------------
 
 
 @router.message(Text(contains=['Записаться']))
@@ -139,11 +177,14 @@ async def get_procedure_date(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(Text(startswith=['date']), GetUserInfo.date)
 async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
     date = callback.data.split()[1]
+    user_data = await state.get_data()
     await state.update_data(date=date)
 
+    master_id = user_data['master']
+    service_id = user_data['service']
     await callback.message.edit_text(
         text='Выберите время:',
-        reply_markup=user_keyboards.time_work_master_keyboard(GetUserInfo.master, GetUserInfo.date)
+        reply_markup=user_keyboards.time_work_master_keyboard(master_id, service_id, date)
     )
     await state.set_state(GetUserInfo.time)
     await callback.answer()
@@ -186,32 +227,55 @@ async def process_phone(message: Message, state: FSMContext):
     await state.set_state(GetUserInfo.pay)
 
 
-@router.callback_query(Text(startswith=['pay_no']), GetUserInfo.pay)
+@router.callback_query(Text(contains=['pay_no']))
 async def check_pay(callback: CallbackQuery, state: FSMContext):
+    print('pay_no')
+    user_data = await state.get_data()
+    date = user_data['date']
+    time = user_data['time']
     await state.update_data(pay=False)
     # write DB
-    await message.answer(
-        reply_markup=user_keyboards.start_keyboard()
+    await callback.message.edit_text(
+        text=f"Спасибо за запись! До встречи {date} {time} по адресу address"
     )
+    await state.clear()
 
 
-@router.message(Text(contains=['pay_yes']))
+@router.callback_query(Text(contains=['pay_yes']))
 async def process_storage_conditions(message: Message, bot: Bot, state: FSMContext):
     user_data = await state.get_data()
-    service = user_data['service']
-    price = [LabeledPrice(label=f'{service}', amount=PRICES[f'{service}'] * 100)]
+    print(user_data['service'])
+    service = Service.objects.get(pk=user_data['service'])
+    print(service)
+    price = [LabeledPrice(label=str(service.name), amount=int(service.price*100))]
+    print(price)
     await bot.send_invoice(
         message.from_user.id,
-        title=service,
+        title=service.name,
         description='Оплата косметической поцедуры.',
         provider_token=load_config().payment_token.p_token,
         currency='rub',
-        photo_url=PHOTOS[f'{service}'],
+        photo_url=PHOTOS[f'{service.name}'],
         is_flexible=False,
         prices=price,
         start_parameter='example',
         payload='test-invoice-payload'
     )
+
+    await state.set_state(GetUserInfo.pay_yes)
+
+
+# @router.message(GetUserInfo.pay_yes)
+# async def pay(message: Message, state: FSMContext):
+#     user_name = message.text
+#     user_data = await state.get_data()
+#     await state.update_data(user_name=user_name)
+#     await message.answer(
+#         text='Оплата произведена',
+#         reply_markup=user_keyboards.start_keyboard()
+#
+#     )
+#     await state.clear()
 
 
 @router.pre_checkout_query(lambda query: True)
@@ -220,9 +284,14 @@ async def pre_checkout_query(pre_checkout_q: pre_checkout_query.PreCheckoutQuery
 
 
 @router.message()
-async def successful_payment(message: successful_payment.SuccessfulPayment):
-    # write DB
-    pass
+async def successful_payment(message: successful_payment.SuccessfulPayment, state:FSMContext):
+    schedule = Schedule.objects.create()
+    user_data = await state.get_data()
+    user = User.objects.get_or_create(telegram_id=user_data['user_id'])
+    user.name = user_data['name']
+
+    print(f'{user_data["user_id"]=} {user_data["user_name"]}')
+    #в процессе
 
 
 
@@ -314,7 +383,7 @@ async def output_pick_up_cells_buttons(callback: CallbackQuery, state: FSMContex
     if deliver:
         await callback.message.edit_text(
             text='Менеджер свяжется с вами в ближайшее время для '
-            'уточнения деталей доставки ваших вещей.'
+                 'уточнения деталей доставки ваших вещей.'
         )
     else:
         qr_data = f'user_id={user_id}, cell_number={cell_number}'

@@ -96,9 +96,13 @@ class Schedule(models.Model):
         blank=True, null=True
     )
 
+    pay = models.BooleanField(default=False, verbose_name='Оплата проведена?')
+
+    amount = models.IntegerField(default=0, verbose_name='Оплаченная сумма')
+
     class Meta:
-        verbose_name = 'Расписание'
-        verbose_name_plural = 'Расписание'
+        verbose_name = 'Запись клиента'
+        verbose_name_plural = 'Записи клиентов'
 
     def __str__(self):
         return f'{self.timeslot} - {self.specialist.name} - {self.services.name}'

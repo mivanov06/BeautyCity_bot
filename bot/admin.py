@@ -16,8 +16,8 @@ class AdminSpecialist(admin.ModelAdmin):
 
 @admin.register(Schedule)
 class AdminSchedule(admin.ModelAdmin):
-    list_display = ('date', 'timeslot', 'specialist', 'services', 'user',)
-
+    list_display = ('date', 'timeslot', 'specialist', 'services', 'user', 'pay', 'amount')
+    list_filter = ('specialist', 'date')
 
 
 @admin.register(User)

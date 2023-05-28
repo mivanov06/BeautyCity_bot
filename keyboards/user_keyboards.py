@@ -18,15 +18,16 @@ CALL_US_BUTTON = ('Позвонить нам', 'call_us')
 
 from bot.models import *
 
+
 def start_keyboard():
     buttons_data = [
         ('Записаться', 'Оставить отзыв'),
         ('О нас',)
     ]
 
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=text) for text in row] for row in buttons_data
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text=text) for text in row] for row in buttons_data
         ],
         resize_keyboard=True
     )
@@ -72,7 +73,6 @@ def masters_keyboard(service):
     masters = list()
     for master in masters_m:
         masters.append((master.name, f'master {master.id}'))
-    # masters = [('Ольга', 'master Ольга'), ('Татьяна', 'master Татьяна')]
     masters.append(CALL_US_BUTTON)
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -83,7 +83,7 @@ def masters_keyboard(service):
 
 def date_work_master_keyboard(master):
     master = Specialist.objects.get(pk=master)
-    date_m = master.specialist.all()
+    date_m = master.specialist.filter(date__gte=dt.date.today())
     date_list = list()
     for date_element in date_m:
         date_list.append((str(date_element.date), f'date {date_element.date}'))
@@ -95,20 +95,30 @@ def date_work_master_keyboard(master):
     )
 
 
-def time_work_master_keyboard(master, date):
-    master = Specialist.objects.get(pk=master)
-    # time_m = master.specialist.filter(date=date)
-    print(master)
+def time_work_master_keyboard(master_id, service_id, date):
+    date_list = Work_time.objects.filter(date=date).filter(specialist_id=master_id).first()  #
+    busy_time_query = Schedule.objects.filter(date=date).filter(specialist_id=master_id)
+    busy_time_list = list()  # Занятые слоты на день
+    for busy_time in busy_time_query:
+        busy_time_list.append(busy_time.timeslot)
+    print(f'{TIMESLOT_LIST[date_list.timeslot_start]=}')
+    print(f'{TIMESLOT_LIST[date_list.timeslot_end]=}')
     time_list = list()
-    for time_element in time_m:
-        time_list.append((str(time_element.date), f'time {time_element.date}'))
+    print(busy_time_list)
+    timeslot_start_id, _ = TIMESLOT_LIST[date_list.timeslot_start]
+    timeslot_end_id, _ = TIMESLOT_LIST[date_list.timeslot_end]
+    for element_id in range(timeslot_start_id, timeslot_end_id + 1):
+        slot_id, time_str = TIMESLOT_LIST[element_id]
+        if slot_id not in busy_time_list:
+            time_list.append((f'{str(time_str)}', f'time {time_str}'))
+        else:
+            time_list.append((f'{str(time_str)} Занято', f't'))
     time_list.append(CALL_US_BUTTON)
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=text, callback_data=data)] for text, data in time_list
         ],
     )
-
 
 
 def calculate_work_shifts(first_shift):
