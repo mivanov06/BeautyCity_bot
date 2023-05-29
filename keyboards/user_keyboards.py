@@ -25,9 +25,9 @@ def start_keyboard():
         ('О нас',)
     ]
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text) for text in row] for row in buttons_data
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=text) for text in row] for row in buttons_data
         ],
         resize_keyboard=True
     )
@@ -68,7 +68,6 @@ def type_service_keyboard():
 
 def masters_keyboard(service):
     service_m = Service.objects.get(pk=service)
-    print(f'{service_m=}')
     masters_m = service_m.services.all()
     masters = list()
     for master in masters_m:
@@ -101,16 +100,13 @@ def time_work_master_keyboard(master_id, service_id, date):
     busy_time_list = list()  # Занятые слоты на день
     for busy_time in busy_time_query:
         busy_time_list.append(busy_time.timeslot)
-    print(f'{TIMESLOT_LIST[date_list.timeslot_start]=}')
-    print(f'{TIMESLOT_LIST[date_list.timeslot_end]=}')
     time_list = list()
-    print(busy_time_list)
     timeslot_start_id, _ = TIMESLOT_LIST[date_list.timeslot_start]
     timeslot_end_id, _ = TIMESLOT_LIST[date_list.timeslot_end]
     for element_id in range(timeslot_start_id, timeslot_end_id + 1):
         slot_id, time_str = TIMESLOT_LIST[element_id]
         if slot_id not in busy_time_list:
-            time_list.append((f'{str(time_str)}', f'time {time_str}'))
+            time_list.append((f'{str(time_str)}', f'time_slot {slot_id}'))
         else:
             time_list.append((f'{str(time_str)} Занято', f't'))
     time_list.append(CALL_US_BUTTON)

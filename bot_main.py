@@ -37,14 +37,13 @@ async def set_main_menu(bot: Bot):
     await bot.set_my_commands(
         [
             types.BotCommand(
+                command="/start",
+                description="Начало"
+            ),
+            types.BotCommand(
                 command="/help",
                 description="Справка по работе бота"
             ),
-            types.BotCommand(
-                command="/support",
-                description="Поддержка"
-            ),
-
         ]
     )
 

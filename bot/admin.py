@@ -22,7 +22,7 @@ class AdminSchedule(admin.ModelAdmin):
 
 @admin.register(User)
 class AdminUser(admin.ModelAdmin):
-    list_display = ('name', 'phone')
+    list_display = ('name', 'phone',)
 
 
 @admin.register(Work_time)
