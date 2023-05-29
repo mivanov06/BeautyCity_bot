@@ -79,6 +79,20 @@ async def process_what_can_be_stored(message: Message):
 
 # --------------------------------------------------------------------------
 
+@router.message(Text(contains=['О нас']))
+async def about(message: Message):
+    services = Service.objects.all()
+    text = LEXICON_RU['about']
+    for service in services:
+        text = f'{text}\n- {service.name}'
+    await message.answer(
+        text=text,
+        reply_markup=user_keyboards.start_keyboard()
+    )
+
+
+# --------------------------------------------------------------------------
+
 
 @router.message(Text(contains=['Оставить отзыв']))
 async def set_text_comment(message: Message, state: FSMContext):
