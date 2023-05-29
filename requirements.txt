@@ -2,6 +2,7 @@ Django==2.2.24
 environs==5.2.1
 dj-database-url==0.5.0
 django-phonenumber-field==5.0.0
+django-phonenumbers==1.0.1
 aiogram===3.0.0b6
 python-dotenv==0.21.1
 sqlite3-api==2.0.4
