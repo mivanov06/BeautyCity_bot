@@ -27,7 +27,6 @@ django.setup()
 from bot.models import *
 
 
-
 class MyCellsState(StatesGroup):
     cell_number = State()
     all_things = State()  # True клиент заберет все вещи, если часть - False
@@ -54,17 +53,18 @@ class GetCommentInfo(StatesGroup):
 
 # Этот хэндлер срабатывает на команду /start
 @router.message(CommandStart())
-async def process_start_command(message: Message):
+async def process_start_command(message: Message, state: FSMContext):
     await message.answer(
         text=LEXICON_RU['/start'],
         reply_markup=user_keyboards.start_keyboard()
     )
+    await state.clear()
 
 
 # Этот хэндлер срабатывает на команду /help
 @router.message(Command(commands=['help']))
 async def process_help_command(message: Message):
-    await message.send.answer(
+    await message.answer(
         text=LEXICON_RU['/help'],
     )
 
@@ -74,6 +74,20 @@ async def process_what_can_be_stored(message: Message):
     await message.answer(
         text='Ознакомиться с правилами хранения:',
         reply_markup=user_keyboards.what_can_be_stored_keyboard()
+    )
+
+
+# --------------------------------------------------------------------------
+
+@router.message(Text(contains=['О нас']))
+async def about(message: Message):
+    services = Service.objects.all()
+    text = LEXICON_RU['about']
+    for service in services:
+        text = f'{text}\n- {service.name}'
+    await message.answer(
+        text=text,
+        reply_markup=user_keyboards.start_keyboard()
     )
 
 
@@ -190,10 +204,10 @@ async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(Text(startswith=['time']), GetUserInfo.time)
+@router.callback_query(Text(startswith=['time_slot']), GetUserInfo.time)
 async def get_user_name(callback: CallbackQuery, state: FSMContext):
-    time = callback.data.split()[1]
-    await state.update_data(time=time)
+    time_slot = callback.data.split()[1]
+    await state.update_data(time_slot=time_slot)
 
     await callback.message.edit_text(
         text='Введите свое имя:'
@@ -229,14 +243,25 @@ async def process_phone(message: Message, state: FSMContext):
 
 @router.callback_query(Text(contains=['pay_no']))
 async def check_pay(callback: CallbackQuery, state: FSMContext):
-    print('pay_no')
     user_data = await state.get_data()
+    user, created = User.objects.get_or_create(telegram_id=user_data['user_id'])
+    if created:
+        user.name = user_data['name']
+        user.telegram_id = user_data['user_id']
+        user.phone = user_data['phone']
+        user.save()
     date = user_data['date']
-    time = user_data['time']
+    time_slot = user_data['time_slot']
     await state.update_data(pay=False)
-    # write DB
+    schedule = Schedule.objects.create(date=user_data['date'],
+                                       timeslot=user_data['time_slot'],
+                                       user=user,
+                                       specialist_id=int(user_data['master']),
+                                       services_id=int(user_data['service'])
+                                       )
+    schedule.save()
     await callback.message.edit_text(
-        text=f"Спасибо за запись! До встречи {date} {time} по адресу address"
+        text=f"Спасибо за запись! До встречи {date} {time_slot} по адресу address"
     )
     await state.clear()
 
@@ -244,11 +269,9 @@ async def check_pay(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(Text(contains=['pay_yes']))
 async def process_storage_conditions(message: Message, bot: Bot, state: FSMContext):
     user_data = await state.get_data()
-    print(user_data['service'])
     service = Service.objects.get(pk=user_data['service'])
-    print(service)
-    price = [LabeledPrice(label=str(service.name), amount=int(service.price*100))]
-    print(price)
+    price = [LabeledPrice(label=str(service.name), amount=int(service.price * 100))]
+    await state.update_data(amount=service.price)
     await bot.send_invoice(
         message.from_user.id,
         title=service.name,
@@ -265,34 +288,33 @@ async def process_storage_conditions(message: Message, bot: Bot, state: FSMConte
     await state.set_state(GetUserInfo.pay_yes)
 
 
-# @router.message(GetUserInfo.pay_yes)
-# async def pay(message: Message, state: FSMContext):
-#     user_name = message.text
-#     user_data = await state.get_data()
-#     await state.update_data(user_name=user_name)
-#     await message.answer(
-#         text='Оплата произведена',
-#         reply_markup=user_keyboards.start_keyboard()
-#
-#     )
-#     await state.clear()
-
-
 @router.pre_checkout_query(lambda query: True)
 async def pre_checkout_query(pre_checkout_q: pre_checkout_query.PreCheckoutQuery, bot: Bot):
     await bot.answer_pre_checkout_query(pre_checkout_q.id, ok=True)
 
 
 @router.message()
-async def successful_payment(message: successful_payment.SuccessfulPayment, state:FSMContext):
-    schedule = Schedule.objects.create()
+async def successful_payment(message: successful_payment.SuccessfulPayment, state: FSMContext):
     user_data = await state.get_data()
-    user = User.objects.get_or_create(telegram_id=user_data['user_id'])
-    user.name = user_data['name']
+    user, created = User.objects.get_or_create(telegram_id=user_data['user_id'])
+    if created:
+        user.name = user_data['name']
+        user.telegram_id = user_data['user_id']
+        user.phone = user_data['phone']
+        user.save()
+    schedule = Schedule.objects.create(date=user_data['date'],
+                                       timeslot=user_data['time_slot'],
+                                       user=user,
+                                       specialist_id=int(user_data['master']),
+                                       services_id=int(user_data['service']),
+                                       pay = True,
+                                       amount = user_data['amount']
+    )
+    schedule.save()
+    await state.clear()
 
-    print(f'{user_data["user_id"]=} {user_data["user_name"]}')
-    #в процессе
 
+#--------------------------------------------------------------------------
 
 
 # Ветвь "Мои ячейки"
