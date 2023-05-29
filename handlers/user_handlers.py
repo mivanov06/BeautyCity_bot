@@ -9,7 +9,6 @@ from aiogram.methods.send_invoice import SendInvoice
 from config_data.config import my_table, load_config, PRICES, PHOTOS
 from keyboards import user_keyboards
 from lexicon.lexicon_ru import LEXICON_RU
-from aiogram3_calendar import DialogCalendar, dialog_cal_callback
 
 from database import database_funcs
 from utils.utils import entry_to_database, get_qrcode
@@ -294,124 +293,23 @@ async def pre_checkout_query(pre_checkout_q: pre_checkout_query.PreCheckoutQuery
 
 
 @router.message()
-async def successful_payment(message: successful_payment.SuccessfulPayment, state: FSMContext):
-    user_data = await state.get_data()
-    user, created = User.objects.get_or_create(telegram_id=user_data['user_id'])
-    if created:
-        user.name = user_data['name']
-        user.telegram_id = user_data['user_id']
-        user.phone = user_data['phone']
-        user.save()
-    schedule = Schedule.objects.create(date=user_data['date'],
-                                       timeslot=user_data['time_slot'],
-                                       user=user,
-                                       specialist_id=int(user_data['master']),
-                                       services_id=int(user_data['service']),
-                                       pay = True,
-                                       amount = user_data['amount']
-    )
-    schedule.save()
-    await state.clear()
-
-
-#--------------------------------------------------------------------------
-
-
-# Ветвь "Мои ячейки"
-@router.message(Text(contains=['Мои ячейки']))
-async def output_my_cells_menu(message: Message):
-    user_id = message.from_user.id
-    is_user = database_funcs.check_user(user_id)
-    if is_user:
-        if not database_funcs.get_user_cells(user_id):
-            await message.answer(
-                text=f'Ваш заказ в обработке.'
-            )
-        else:
-            cell_number = database_funcs.get_user_cells(user_id)
-            await message.answer(
-                text=f'{cell_number}',
-                reply_markup=user_keyboards.output_my_cells_keyboard()
-            )
-    else:
-        await message.answer(
-            text=f'У вас нет вещей на хранении.'
+async def successful_payment(message: Message, state: FSMContext):
+    if message.successful_payment:
+        user_data = await state.get_data()
+        user, created = User.objects.get_or_create(telegram_id=user_data['user_id'])
+        if created:
+            user.name = user_data['name']
+            user.telegram_id = user_data['user_id']
+            user.phone = user_data['phone']
+            user.save()
+        schedule = Schedule.objects.create(
+            date=user_data['date'],
+            timeslot=user_data['time_slot'],
+            user=user,
+            specialist_id=int(user_data['master']),
+            services_id=int(user_data['service']),
+            pay=True,
+            amount=user_data['amount']
         )
-
-
-@router.callback_query(Text(text=['extend_storage']))
-async def get_cell_number(callback: CallbackQuery):
-    user_id = callback.from_user.id
-    user_cells = database_funcs.get_user_cells(user_id)
-    await callback.message.edit_text(
-        text='Выберите ячейку, для которой хотите продлить срок хранения:',
-        reply_markup=user_keyboards.generate_my_cells_keyboard(user_cells)
-    )
-
-
-@router.callback_query(Text(startswith=['cell_']))
-async def extend_rental_period_cmd(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(cell_number=callback.data.split(sep="_")[-1])
-    # отправить номер ячейки и время продления в админку, раздел "Запросы на продление"
-    await callback.message.edit_text(
-        text='Выберите срок продления аренды:',
-        reply_markup=user_keyboards.extend_rental_period_keyboard()
-    )
-
-
-@router.callback_query(Text(startswith=['extend_']))
-async def send_success_extend_message(callback: CallbackQuery):
-    await callback.message.edit_text(
-        text='Ваш запрос на продление срока аренды принят. \n'
-             'Менеджер свяжется с вами в ближайшее время для '
-             'уточнения деталей.'
-    )
-
-
-@router.callback_query(Text(text=['pick_up_some_things', 'pick_up_all_things']))
-async def output_pick_up_things_buttons(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        text='Заберете вещи сами?',
-        reply_markup=user_keyboards.generate_pick_up_things_keyboard()
-    )
-
-    if callback.data == 'pick_up_some_things':
-        await state.update_data(all_things=False)  # клиент заберет часть вещей
-    else:
-        await state.update_data(all_things=True)  # клиент заберет все вещи
-
-
-@router.callback_query(Text(text=['pick_up_myself', 'deliver_home']))
-async def output_pick_up_cells_buttons(callback: CallbackQuery, state: FSMContext):
-    user_id = callback.from_user.id
-    user_cells = database_funcs.get_user_cells(user_id)
-    await callback.message.edit_text(
-        text='Выберите ячейку, из которой хотите забрать вещи:',
-        reply_markup=user_keyboards.generate_pick_up_cells_keyboard(user_cells)
-    )
-    if callback.data == 'deliver_home':
-        await state.update_data(deliver=True)  # доставить вещи клиенту на дом
-    else:
-        await state.update_data(deliver=False)  # клиент заберет вещи сам
-
-
-@router.callback_query(Text(startswith=['pick_up_cell_']))
-async def output_pick_up_cells_buttons(callback: CallbackQuery, state: FSMContext):
-    user_id = callback.from_user.id
-    data = await state.get_data()
-    deliver = data.get('deliver')
-    all_things = data.get('all_things')
-    cell_number = data.get('cell_number')
-    if deliver:
-        await callback.message.edit_text(
-            text='Менеджер свяжется с вами в ближайшее время для '
-                 'уточнения деталей доставки ваших вещей.'
-        )
-    else:
-        qr_data = f'user_id={user_id}, cell_number={cell_number}'
-        photo = get_qrcode(qr_data)
-        if all_things:
-            await callback.message.answer_photo(photo, caption='Предьявите QR-код на складе, для получения вещей')
-        else:
-            await callback.message.answer_photo(photo, caption='Предьявите QR-код на складе, для получения вещей')
-    await state.clear()
+        schedule.save()
+        await state.clear()

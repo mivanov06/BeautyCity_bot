@@ -184,46 +184,6 @@ def pay_keyboard():
     )
 
 
-def extend_rental_period_keyboard():
-    periods = [
-        ('1 месяц', 'extend_one_month'),
-        ('3 месяца', 'extend_tree_month'),
-        ('6 месяцев', 'extend_six_month'),
-        ('12 месяцев', 'extend_twelve_month')
-    ]
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in periods
-        ]
-    )
-
-
-def generate_pick_up_things_keyboard():
-    buttons_data = [
-        ('Заберу сам(а)', 'pick_up_myself'),
-        ('Доставить на дом', 'deliver_home')
-    ]
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in buttons_data
-        ]
-    )
-
-
-def generate_pick_up_cells_keyboard(user_cells):
-    buttons = []
-    for cell in user_cells:
-        buttons.append((f'{cell}', f'pick_up_cell_{cell}'))
-
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in buttons
-        ]
-    )
-
-
 def agree_keyboard():
     buttons_data = [
         ('Согласен с правилами', 'agree')
