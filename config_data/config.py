@@ -1,18 +1,10 @@
 from dataclasses import dataclass
 from environs import Env
-from sqlite3_api.Table import Table
-from sqlite3_api.field_types import List
-from pathlib import Path
 
 
 @dataclass
 class PaymentToken:
     p_token: str
-
-
-@dataclass
-class AdminIds:
-    ids_list: list  # список телеграм id админов
 
 
 @dataclass
@@ -23,7 +15,6 @@ class DatabaseConfig:
 @dataclass
 class TgBot:
     token: str  # Токен для доступа к телеграм-боту
-    # admin_ids: list  # Список id администраторов бота
 
 
 @dataclass
@@ -43,12 +34,6 @@ def load_config() -> Config:
         payment_token=PaymentToken(p_token=env('PAYMENT_TOKEN'))
     )
 
-
-PRICES = {
-    'Мейкап': 800,
-    'Покраска волос': 500,
-    'Маникюр': 700
-}
 
 PHOTOS = {
     'Мейкап': 'https://images.belcy-storage.com/uploads/1/picture/file/25783/middle_shutterstock_284414423.jpg',

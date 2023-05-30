@@ -1,5 +1,7 @@
 import os
 
+from keyboards.keyboard_utils import get_inline_keyboard
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BeautyCity_bot.settings")
 
 import django
@@ -13,8 +15,6 @@ from aiogram.types import (
     InlineKeyboardButton,
 )
 import datetime as dt
-
-CALL_US_BUTTON = ('Позвонить нам', 'call_us')
 
 from bot.models import *
 
@@ -47,55 +47,34 @@ def what_can_be_stored_keyboard():
 
 
 def type_service_keyboard():
-    services = [
-        ('Мейкап', 'service Мейкап'),
-        ('Покраска волос', 'service Покраска волос'),
-        ('Маникюр', 'service Маникюр'),
-        CALL_US_BUTTON
-    ]
-
-    serices_m = Service.objects.all()
-    services = list()
-    for service in serices_m:
-        services.append((service.name, f'service {service.id}'))
-    services.append(CALL_US_BUTTON)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in services
-        ],
-    )
+    query_services = Service.objects.all()
+    masters = list()
+    for service in query_services:
+        masters.append((service.name, f'service {service.id}'))
+    return get_inline_keyboard(masters, buttons_in_row=3)
 
 
 def masters_keyboard(service):
     service_m = Service.objects.get(pk=service)
-    masters_m = service_m.services.all()
+    query_masters = service_m.services.all()
     masters = list()
-    for master in masters_m:
+    for master in query_masters:
         masters.append((master.name, f'master {master.id}'))
-    masters.append(CALL_US_BUTTON)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in masters
-        ],
-    )
+    return get_inline_keyboard(masters, buttons_in_row=3)
 
 
 def date_work_master_keyboard(master):
     master = Specialist.objects.get(pk=master)
-    date_m = master.specialist.filter(date__gte=dt.date.today())
-    date_list = list()
-    for date_element in date_m:
-        date_list.append((str(date_element.date), f'date {date_element.date}'))
-    date_list.append(CALL_US_BUTTON)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in date_list
-        ],
-    )
+    query_date = master.specialist.filter(date__gte=dt.date.today())
+    print(query_date)
+    dates = list()
+    for date_element in query_date:
+        dates.append((str(date_element.date), f'date {date_element.date}'))
+    return get_inline_keyboard(dates, buttons_in_row=4)
 
 
-def time_work_master_keyboard(master_id, service_id, date):
-    date_list = Work_time.objects.filter(date=date).filter(specialist_id=master_id).first()  #
+def time_work_master_keyboard(master_id, date):
+    date_list = Work_time.objects.filter(date=date).filter(specialist_id=master_id).first()
     busy_time_query = Schedule.objects.filter(date=date).filter(specialist_id=master_id)
     busy_time_list = list()  # Занятые слоты на день
     for busy_time in busy_time_query:
@@ -109,66 +88,7 @@ def time_work_master_keyboard(master_id, service_id, date):
             time_list.append((f'{str(time_str)}', f'time_slot {slot_id}'))
         else:
             time_list.append((f'{str(time_str)} Занято', f't'))
-    time_list.append(CALL_US_BUTTON)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in time_list
-        ],
-    )
-
-
-def calculate_work_shifts(first_shift):
-    now = dt.date.today()
-    work_shifts_buttons = []
-    work_shifts = [first_shift, first_shift + dt.timedelta(days=1)]
-    while now > work_shifts[0] or now > work_shifts[1]:
-        first_shift += dt.timedelta(days=4)
-        work_shifts = [first_shift, first_shift + dt.timedelta(days=1)]
-    while now + dt.timedelta(days=14) > work_shifts[0] or now > work_shifts[1]:
-        work_shifts_buttons.append(
-            (work_shifts[0].strftime('%d.%m.%Y'), f'date {work_shifts[0].strftime("%d.%m.%Y")}')
-        )
-        work_shifts_buttons.append(
-            (work_shifts[1].strftime('%d.%m.%Y'), f'date {work_shifts[0].strftime("%d.%m.%Y")}')
-        )
-        first_shift += dt.timedelta(days=4)
-        work_shifts = [first_shift, first_shift + dt.timedelta(days=1)]
-    return work_shifts_buttons
-
-
-def master_work_shifts_keyboard(master):
-    # Даты выхода на работу впервые для мастеров Ольга и Татьяна
-    # Мастера работают по графику 2/2
-    date_format = '%d.%m.%Y'
-    first_shift_olga = dt.datetime.strptime('10.01.2016', date_format).date()
-    first_shift_tatiana = dt.datetime.strptime('13.01.2016', date_format).date()
-    if master == 'Ольга':
-        first_shift = first_shift_olga
-        work_shifts_buttons = calculate_work_shifts(first_shift)
-        work_shifts_buttons.append(CALL_US_BUTTON)
-    else:
-        first_shift = first_shift_tatiana
-        work_shifts_buttons = calculate_work_shifts(first_shift)
-        work_shifts_buttons.append(CALL_US_BUTTON)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in work_shifts_buttons
-        ],
-    )
-
-
-def time_keyboard():
-    time = []
-    for hour in range(8, 20):
-        time.append((str(hour) + ':00', f'time {str(hour) + ":00"}'))
-        if hour < 20:
-            time.append((str(hour) + ':30', f'time {str(hour) + ":30"}'))
-    time.append(CALL_US_BUTTON)
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=text, callback_data=data)] for text, data in time
-        ],
-    )
+    return get_inline_keyboard(time_list, buttons_in_row=2)
 
 
 def pay_keyboard():

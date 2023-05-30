@@ -6,7 +6,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.types.message import ContentType
 from aiogram.methods.send_invoice import SendInvoice
 
-from config_data.config import load_config, PRICES, PHOTOS
+from config_data.config import load_config, PHOTOS
 from keyboards import user_keyboards
 from lexicon.lexicon_ru import LEXICON_RU
 
@@ -116,6 +116,13 @@ async def save_comment(message: Message, state: FSMContext):
 # --------------------------------------------------------------------------
 
 
+@router.callback_query(Text(text=['call_us']))
+async def call_us(callback: CallbackQuery):
+    await callback.message.edit_text(
+        text='Мы рады звонку в любое время\n8(800) 555 35 35'
+    )
+
+
 @router.message(Text(contains=['Записаться']))
 async def sign_up(message: Message, state: FSMContext):
     await message.answer(
@@ -127,14 +134,7 @@ async def sign_up(message: Message, state: FSMContext):
     await state.set_state(GetUserInfo.new_user)
 
 
-@router.callback_query(Text(text=['call_us']))
-async def call_us(callback: CallbackQuery):
-    await callback.message.edit_text(
-        text='Мы рады звонку в любое время\n8(800) 555 35 35'
-    )
-
-
-@router.callback_query(Text(text=['agree']), GetUserInfo.new_user)
+@router.callback_query(GetUserInfo.new_user)
 async def get_service_type(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         text='Выберите услугу:',
@@ -145,7 +145,7 @@ async def get_service_type(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(Text(startswith=['service']), GetUserInfo.service)
+@router.callback_query(GetUserInfo.service)
 async def get_master(callback: CallbackQuery, state: FSMContext):
     service = callback.data.split()[1]
     await state.update_data(service=service)
@@ -158,7 +158,7 @@ async def get_master(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(Text(startswith=['master']), GetUserInfo.master)
+@router.callback_query(GetUserInfo.master)
 async def get_procedure_date(callback: CallbackQuery, state: FSMContext):
     master = callback.data.split()[1]
     await state.update_data(master=master)
@@ -171,7 +171,7 @@ async def get_procedure_date(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@router.callback_query(Text(startswith=['date']), GetUserInfo.date)
+@router.callback_query(GetUserInfo.date)
 async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
     date = callback.data.split()[1]
     user_data = await state.get_data()
@@ -181,13 +181,13 @@ async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
     service_id = user_data['service']
     await callback.message.edit_text(
         text='Выберите время:',
-        reply_markup=user_keyboards.time_work_master_keyboard(master_id, service_id, date)
+        reply_markup=user_keyboards.time_work_master_keyboard(master_id, date)
     )
     await state.set_state(GetUserInfo.time)
     await callback.answer()
 
 
-@router.callback_query(Text(startswith=['time_slot']), GetUserInfo.time)
+@router.callback_query(GetUserInfo.time)
 async def get_user_name(callback: CallbackQuery, state: FSMContext):
     time_slot = callback.data.split()[1]
     await state.update_data(time_slot=time_slot)
@@ -220,7 +220,6 @@ async def process_phone(message: Message, state: FSMContext):
         text=f'Спасибо за запись! До встречи {date} по адресу address.\nХотите оплатить сразу?',
         reply_markup=user_keyboards.pay_keyboard()
     )
-
     await state.set_state(GetUserInfo.pay)
 
 
