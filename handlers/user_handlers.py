@@ -1,17 +1,14 @@
 from aiogram import Router, Bot
 from aiogram.filters import Command, CommandStart, Text
-from aiogram.types import Message, CallbackQuery, FSInputFile, pre_checkout_query, successful_payment, LabeledPrice
+from aiogram.types import Message, CallbackQuery, pre_checkout_query, successful_payment, LabeledPrice
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 from aiogram.types.message import ContentType
 from aiogram.methods.send_invoice import SendInvoice
 
-from config_data.config import my_table, load_config, PRICES, PHOTOS
+from config_data.config import load_config, PRICES, PHOTOS
 from keyboards import user_keyboards
 from lexicon.lexicon_ru import LEXICON_RU
-
-from database import database_funcs
-from utils.utils import entry_to_database, get_qrcode
 
 router = Router()
 
@@ -26,11 +23,6 @@ django.setup()
 from bot.models import *
 
 
-class MyCellsState(StatesGroup):
-    cell_number = State()
-    all_things = State()  # True клиент заберет все вещи, если часть - False
-
-
 class GetUserInfo(StatesGroup):
     new_user = State()
     service = State()  # Тип косметической процедуры
@@ -40,7 +32,7 @@ class GetUserInfo(StatesGroup):
     name = State()  # Имя, которое ввел клиент
     phone = State()  # Телефон клиента
     pay = State()  # Оплатил ли клиент процедуру сразу (True/False)
-    pay_yes = State()
+    pay_yes = State()  #
     pay_no = State()
 
 
@@ -67,16 +59,8 @@ async def process_help_command(message: Message):
         text=LEXICON_RU['/help'],
     )
 
-
-@router.message(Text(contains=['Что можно хранить']))
-async def process_what_can_be_stored(message: Message):
-    await message.answer(
-        text='Ознакомиться с правилами хранения:',
-        reply_markup=user_keyboards.what_can_be_stored_keyboard()
-    )
-
-
 # --------------------------------------------------------------------------
+
 
 @router.message(Text(contains=['О нас']))
 async def about(message: Message):

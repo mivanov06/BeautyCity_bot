@@ -2,9 +2,11 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiohttp import BasicAuth
 
-from config_data.config import load_config, my_table, links_table
-from handlers import user_handlers, admin_handlers, other_handlers
+from config_data.config import load_config
+from handlers import user_handlers, other_handlers
 
 logger = logging.getLogger(__name__)
 
@@ -18,14 +20,14 @@ async def main():
 
     logger.info("Starting Bot")
     config = load_config()
+    auth = BasicAuth(login='login', password='password')
+    # session = AiohttpSession(proxy=('http://proxy.server:3128', auth))
+    session = AiohttpSession()
 
-    bot = Bot(config.tg_bot.token, parse_mode="HTML")
+    bot = Bot(config.tg_bot.token, parse_mode="HTML", session=session)
     dp = Dispatcher()
-    my_table.create_table()
-    links_table.create_table()
 
     dp.include_router(user_handlers.router)
-    dp.include_router(admin_handlers.router)
     dp.include_router(other_handlers.router)
 
     dp.startup.register(set_main_menu)
