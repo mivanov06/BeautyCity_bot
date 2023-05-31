@@ -1,6 +1,6 @@
 import os
 
-from keyboards.keyboard_utils import get_inline_keyboard
+from keyboards.keyboard_utils import get_inline_keyboard, START_KEYBOARD
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BeautyCity_bot.settings")
 
@@ -9,8 +9,6 @@ import django
 django.setup()
 
 from aiogram.types import (
-    ReplyKeyboardMarkup,
-    KeyboardButton,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
 )
@@ -20,17 +18,7 @@ from bot.models import *
 
 
 def start_keyboard():
-    buttons_data = [
-        ('Записаться', 'Оставить отзыв'),
-        ('О нас',)
-    ]
-
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text=text) for text in row] for row in buttons_data
-        ],
-        resize_keyboard=True
-    )
+    return get_inline_keyboard(START_KEYBOARD, buttons_in_row=2)
 
 
 def what_can_be_stored_keyboard():

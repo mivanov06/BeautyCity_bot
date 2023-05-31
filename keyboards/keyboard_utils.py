@@ -2,12 +2,12 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 CALL_US_BUTTON = ('Позвонить нам', 'call_us')
 
-START_KEYBOARD = {
+START_KEYBOARD = [
     ('Записаться', 'Записаться'),
     ('Мои записи', 'Мои записи'),
     ('Оставить отзыв', 'Оставить отзыв'),
-    ('О нас', 'О нас'),
-}
+    ('О нас', 'О нас')
+]
 
 
 def get_inline_keyboard(query, buttons_in_row=2, CALL_US=True) -> InlineKeyboardMarkup:
@@ -24,5 +24,4 @@ def get_inline_keyboard(query, buttons_in_row=2, CALL_US=True) -> InlineKeyboard
     if CALL_US:
         text, data = CALL_US_BUTTON
         inline_keyboard.append([InlineKeyboardButton(text=text, callback_data=data)])
-    print(inline_keyboard)
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)

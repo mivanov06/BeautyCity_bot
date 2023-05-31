@@ -17,6 +17,7 @@ import os
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "BeautyCity_bot.settings")
 
 import django
+from django.core.exceptions import ObjectDoesNotExist
 
 django.setup()
 
@@ -45,6 +46,7 @@ class GetCommentInfo(StatesGroup):
 # Этот хэндлер срабатывает на команду /start
 @router.message(CommandStart())
 async def process_start_command(message: Message, state: FSMContext):
+
     await message.answer(
         text=LEXICON_RU['/start'],
         reply_markup=user_keyboards.start_keyboard()
@@ -62,24 +64,54 @@ async def process_help_command(message: Message):
 # --------------------------------------------------------------------------
 
 
-@router.message(Text(contains=['О нас']))
-async def about(message: Message):
+@router.callback_query(Text(contains=['О нас']))
+async def about(callback: CallbackQuery):
     services = Service.objects.all()
     text = LEXICON_RU['about']
     for service in services:
         text = f'{text}\n- {service.name}'
-    await message.answer(
+    await callback.message.edit_text(
         text=text,
         reply_markup=user_keyboards.start_keyboard()
+    )
+
+# --------------------------------------------------------------------------
+
+
+@router.callback_query(Text(contains=['Мои записи']))
+async def get_my_schedules(callback: CallbackQuery):
+    user_id = callback.message.from_user.id
+    my_schedule_text =''
+    try:
+        user = User.objects.get(telegram_id=user_id)
+        user_id = user.pk
+        print(f'{type(user_id)=}')
+        user_text = f'<b>{user.name} ({user.phone}</b>)\n'
+    except User.DoesNotExist:
+        user_text = 'Вы не зарегистрированы'
+        user_id = None
+    my_schedules = Schedule.objects.filter(user_id=user_id).order_by('-date', 'timeslot')
+    for my_schedule in my_schedules:
+        _, time_my_schedule = TIMESLOT_LIST[my_schedule.timeslot]
+        my_schedule_text = f'Дата: {my_schedule.date}. Время: {time_my_schedule}\n' \
+                           f'Услуга: {my_schedule.services.name}\n' \
+                           f'Мастер: {my_schedule.specialist.name}\n'
+        user_text += '----------------------\n'
+        user_text += my_schedule_text
+    print(f'{user_text=}')
+    await callback.message.edit_text(
+        text=user_text,
+        reply_markup=user_keyboards.start_keyboard(),
+        parse_mode='HTML'
     )
 
 
 # --------------------------------------------------------------------------
 
 
-@router.message(Text(contains=['Оставить отзыв']))
-async def set_text_comment(message: Message, state: FSMContext):
-    await message.answer(
+@router.callback_query(Text(contains=['Оставить отзыв']))
+async def set_text_comment(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
         text='Напишите отзыв:'
     )
     await state.set_state(GetCommentInfo.text)
@@ -118,18 +150,20 @@ async def save_comment(message: Message, state: FSMContext):
 
 @router.callback_query(Text(text=['call_us']))
 async def call_us(callback: CallbackQuery):
+    # keyboard =
     await callback.message.edit_text(
-        text='Мы рады звонку в любое время\n8(800) 555 35 35'
+        text='Мы рады звонку в любое время\n8(800) 555 35 35',
+        reply_markup=user_keyboards.start_keyboard()
     )
 
 
-@router.message(Text(contains=['Записаться']))
-async def sign_up(message: Message, state: FSMContext):
-    await message.answer(
+@router.callback_query(Text(contains=['Записаться']))
+async def sign_up(callback: CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
         text=LEXICON_RU['rules'],
         reply_markup=user_keyboards.agree_keyboard()
     )
-    user_id = int(message.from_user.id)
+    user_id = int(callback.message.from_user.id)
     await state.update_data(user_id=user_id)
     await state.set_state(GetUserInfo.new_user)
 
@@ -178,7 +212,6 @@ async def get_procedure_time(callback: CallbackQuery, state: FSMContext):
     await state.update_data(date=date)
 
     master_id = user_data['master']
-    service_id = user_data['service']
     await callback.message.edit_text(
         text='Выберите время:',
         reply_markup=user_keyboards.time_work_master_keyboard(master_id, date)
