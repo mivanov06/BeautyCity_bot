@@ -58,7 +58,7 @@ def date_work_master_keyboard(master):
     dates = list()
     for date_element in query_date:
         dates.append((str(date_element.date), f'date {date_element.date}'))
-    return get_inline_keyboard(dates, buttons_in_row=4)
+    return get_inline_keyboard(dates, buttons_in_row=2)
 
 
 def time_work_master_keyboard(master_id, date):
