@@ -46,7 +46,6 @@ class GetCommentInfo(StatesGroup):
 # Этот хэндлер срабатывает на команду /start
 @router.message(CommandStart())
 async def process_start_command(message: Message, state: FSMContext):
-
     await message.answer(
         text=LEXICON_RU['/start'],
         reply_markup=user_keyboards.start_keyboard()
@@ -60,6 +59,17 @@ async def process_help_command(message: Message):
     await message.answer(
         text=LEXICON_RU['/help'],
     )
+
+
+# --------------------------------------------------------------------------
+
+# Этот хэндлер срабатывает на команду
+@router.message(Text(contains=['расписание']))
+async def process_help_command(message: Message):
+    await message.answer(
+        text=LEXICON_RU['/help'],
+    )
+
 
 # --------------------------------------------------------------------------
 
@@ -75,13 +85,14 @@ async def about(callback: CallbackQuery):
         reply_markup=user_keyboards.start_keyboard()
     )
 
+
 # --------------------------------------------------------------------------
 
 
-@router.callback_query(Text(contains=['Мои записи']))
+@router.callback_query(Text(text=['Мои записи']))
 async def get_my_schedules(callback: CallbackQuery):
     user_id = callback.message.from_user.id
-    my_schedule_text =''
+    my_schedule_text = ''
     try:
         user = User.objects.get(telegram_id=user_id)
         user_id = user.pk
