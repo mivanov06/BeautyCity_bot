@@ -20,7 +20,6 @@ class TgBot:
 @dataclass
 class Config:
     tg_bot: TgBot
-    db: DatabaseConfig
     payment_token: PaymentToken
 
 
@@ -30,7 +29,6 @@ def load_config() -> Config:
 
     return Config(
         tg_bot=TgBot(token=env('BOT_TOKEN')),
-        db=DatabaseConfig(database=env('DATABASE_NAME')),
         payment_token=PaymentToken(p_token=env('PAYMENT_TOKEN'))
     )
 
