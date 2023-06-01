@@ -92,11 +92,9 @@ async def about(callback: CallbackQuery):
 @router.callback_query(Text(text=['Мои записи']))
 async def get_my_schedules(callback: CallbackQuery):
     user_id = callback.message.from_user.id
-    my_schedule_text = ''
     try:
         user = User.objects.get(telegram_id=user_id)
         user_id = user.pk
-        print(f'{type(user_id)=}')
         user_text = f'<b>{user.name} ({user.phone}</b>)\n'
     except User.DoesNotExist:
         user_text = 'Вы не зарегистрированы'
@@ -109,7 +107,6 @@ async def get_my_schedules(callback: CallbackQuery):
                            f'Мастер: {my_schedule.specialist.name}\n'
         user_text += '----------------------\n'
         user_text += my_schedule_text
-    print(f'{user_text=}')
     await callback.message.edit_text(
         text=user_text,
         reply_markup=user_keyboards.start_keyboard(),
