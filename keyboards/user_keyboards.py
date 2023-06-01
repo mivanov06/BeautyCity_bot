@@ -39,7 +39,7 @@ def type_service_keyboard():
     masters = list()
     for service in query_services:
         masters.append((service.name, f'service {service.id}'))
-    return get_inline_keyboard(masters, buttons_in_row=3)
+    return get_inline_keyboard(masters, buttons_in_row=2)
 
 
 def masters_keyboard(service):
