@@ -342,8 +342,9 @@ async def successful_payment(message: Message, state: FSMContext):
         schedule.save()
         date = user_data['date']
         time_slot = user_data['time_slot']
+        _, time_my_schedule = TIMESLOT_LIST[time_slot]
         await message.answer(
-            text=f"Спасибо за запись! До встречи {date} {time_slot} по адресу address",
+            text=f"Спасибо за запись! До встречи {date} {time_my_schedule} по адресу address",
             reply_markup=user_keyboards.start_keyboard()
         )
         await state.clear()
