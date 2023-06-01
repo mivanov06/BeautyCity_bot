@@ -53,7 +53,8 @@ def masters_keyboard(service):
 
 def date_work_master_keyboard(master):
     master = Specialist.objects.get(pk=master)
-    query_date = master.specialist.filter(date__gte=dt.date.today())
+    date_limit = dt.date.today() + dt.timedelta(days=14)
+    query_date = master.specialist.filter(date__gte=dt.date.today()).filter(date__lte=date_limit)
     print(query_date)
     dates = list()
     for date_element in query_date:
